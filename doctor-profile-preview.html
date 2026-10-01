@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clinova — الملف التعريفي للطبيب</title>
+
+  <!-- Google Typography: Alexandria, Tajawal & Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700;800;900&family=Tajawal:wght@400;500;700;800&family=Fira+Code:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Three.js for 3D Immersive Calming WebGL Background -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Alexandria', 'Tajawal', 'sans-serif'],
+            mono: ['Fira Code', 'monospace']
+          },
+          colors: {
+            pearl: '#f8faf9',
+            teal: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              400: '#2dd4bf',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              950: '#042f2e'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #f8faf9;
+      font-family: 'Alexandria', 'Tajawal', sans-serif;
+      overflow-x: hidden;
+      color: #1e293b;
+    }
+
+    #canvas3d {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .ambient-radial-glow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+      background: 
+        radial-gradient(ellipse at 15% 15%, rgba(13, 148, 136, 0.06) 0%, transparent 45%),
+        radial-gradient(ellipse at 85% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 45%);
+    }
+
+    .neat-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.95);
+      border-radius: 28px;
+      box-shadow: 0 10px 30px -10px rgba(18, 38, 45, 0.05), 0 2px 6px rgba(18, 38, 45, 0.02);
+      transition: all 0.3s ease;
+    }
+
+    .neat-card:hover {
+      box-shadow: 0 16px 36px -10px rgba(13, 148, 136, 0.08);
+      border-color: rgba(13, 148, 136, 0.2);
+    }
+
+    /* Modal Animation */
+    .modal-anim {
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .toast-anim {
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+    }
+
+    .toast-hidden {
+      transform: translate(-50%, -100px);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .toast-visible {
+      transform: translate(-50%, 0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+  </style>
+</head>
+<body class="selection:bg-teal-500 selection:text-white">
+
+  <!-- 3D Three.js WebGL Calming Canvas -->
+  <canvas id="canvas3d"></canvas>
+
+  <!-- Ambient Light Backdrop -->
+  <div class="ambient-radial-glow"></div>
+
+  <!-- Floating Toast Notification -->
+  <div id="saveToast" class="fixed top-6 left-1/2 z-[100] toast-anim toast-hidden bg-slate-900 text-white px-6 py-3.5 rounded-full shadow-2xl backdrop-blur-xl flex items-center gap-3 border border-teal-500/40 text-sm font-bold">
+    <div class="w-5 h-5 rounded-full bg-teal-500 text-white flex items-center justify-center font-black text-xs">✓</div>
+    <span id="toastMessage">تم حفظ التعديلات بنجاح! ✨</span>
+  </div>
+
+  <!-- Main Container -->
+  <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+    <!-- Top Action Bar -->
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-extrabold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-2xl border border-teal-200">
+          Clinova Care Profile
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button onclick="triggerShareModal()" class="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/90 hover:bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 shadow-sm transition-all">
+          <span>🔗 مشاركة الرابط</span>
+        </button>
+
+        <button onclick="openEditModal()" class="inline-flex items-center gap-2 px-5 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-black shadow-md transition-all transform active:scale-95">
+          <span>✏️ تعديل الملف كطبيب</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 1. HERO PROFILE BANNER (NEAT, BALANCED & CALM) -->
+    <section class="neat-card p-6 sm:p-8">
+      <div class="flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
+        
+        <!-- Doctor Portrait -->
+        <div class="relative shrink-0">
+          <div class="w-32 h-32 sm:w-40 sm:h-40 rounded-3xl overflow-hidden border-2 border-white shadow-md bg-teal-50">
+            <img 
+              id="docPortraitImg"
+              src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=600&auto=format&fit=crop" 
+              alt="د. أحمد رضوان"
+              class="w-full h-full object-cover object-top"
+            />
+          </div>
+
+          <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white px-3 py-1 rounded-full border border-emerald-500/40 shadow-sm flex items-center gap-1.5 whitespace-nowrap">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-[10px] font-extrabold text-emerald-700">متاح للحجز</span>
+          </div>
+        </div>
+
+        <!-- Doctor Details -->
+        <div class="flex-1 text-center md:text-right space-y-3">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center justify-center md:justify-start gap-2">
+                <h1 id="docName" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                  د. أحمد محمود رضوان
+                </h1>
+                <span class="text-teal-600 text-lg" title="طبيب موثق ومعتمد">🛡️</span>
+              </div>
+              <p id="docTitle" class="text-xs sm:text-sm font-bold text-teal-700 mt-1">
+                استشاري أمراض الباطنة والقلب والأوعية الدموية
+              </p>
+            </div>
+
+            <!-- Price Pill -->
+            <div class="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-teal-50 border border-teal-200 text-teal-800">
+              <span class="text-xs font-bold">سعر الكشف:</span>
+              <span id="docPrice" class="text-sm font-black font-mono">350 ج.م</span>
+            </div>
+          </div>
+
+          <!-- Specialty Badges -->
+          <div class="flex flex-wrap items-center justify-center md:justify-start gap-2 pt-1">
+            <span id="docSpec" class="px-3 py-1 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">
+              🩺 باطنة عامة • اعتلال عضلة القلب • سكري وضغط مزمن
+            </span>
+            <span id="docBranch" class="px-3 py-1 rounded-xl bg-slate-100 text-slate-600 text-xs font-semibold">
+              📍 مجمع مديكال وورلد، الدور الثالث، عيادة 304
+            </span>
+          </div>
+
+          <!-- Metrics Row -->
+          <div class="grid grid-cols-3 gap-3 pt-3 border-t border-slate-100 max-w-lg mx-auto md:mx-0">
+            <div class="bg-slate-50 p-2.5 rounded-2xl text-center border border-slate-100">
+              <span id="docExp" class="text-sm sm:text-base font-black text-slate-900 font-mono block">15+ سنة</span>
+              <span class="text-[10px] text-slate-500 font-bold">خبرة سريرية</span>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-2xl text-center border border-slate-100">
+              <span class="text-sm sm:text-base font-black text-teal-600 font-mono block">12,400+</span>
+              <span class="text-[10px] text-slate-500 font-bold">مريض سعيد</span>
+            </div>
+            <div class="bg-slate-50 p-2.5 rounded-2xl text-center border border-slate-100">
+              <div class="flex items-center justify-center gap-1">
+                <span class="text-amber-500 text-sm">★</span>
+                <span class="text-sm sm:text-base font-black text-slate-900 font-mono">4.95</span>
+              </div>
+              <span class="text-[10px] text-slate-500 font-bold">580 مراجعة</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 2. TABBED SECTIONS (CLEAN, NEAT & ORDERLY) -->
+    <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+      <button id="tabBtnAbout" onclick="switchTab('about')" class="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold bg-slate-900 text-white shadow-sm transition-all">
+        نبذة عن الطبيب والعيادة
+      </button>
+      <button id="tabBtnSlots" onclick="switchTab('slots')" class="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold text-slate-600 hover:text-slate-900 transition-all">
+        المواعيد المتاحة للحجز
+      </button>
+      <button id="tabBtnBlog" onclick="switchTab('blog')" class="px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold text-slate-600 hover:text-slate-900 transition-all">
+        المقالات الطبية (2)
+      </button>
+    </div>
+
+    <!-- PANEL 1: ABOUT & CLINIC INFO -->
+    <div id="panelAbout" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Bio & Credentials (2 Cols) -->
+      <div class="md:col-span-2 space-y-6">
+        <div class="neat-card p-6 sm:p-7 space-y-4">
+          <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <span class="text-lg">📝</span>
+            <h2 class="text-base font-black text-slate-900">النهج العلاجي والخبرات السريرية</h2>
+          </div>
+          <p id="docBio" class="text-sm leading-8 text-slate-600 font-medium whitespace-pre-line">
+            استشاري الباطنة والقلب بمستشفيات القصر العيني ومؤسس عيادات كلينوفا التخصصية. خبرة تمتد لأكثر من 15 عاماً في التشخيص الدقيق للأمراض الباطنية المعقدة، ووضع خطط علاجية شاملة ترتكز على الراحة النفسية والدعم الوقائي المستمر للمريض.
+          </p>
+        </div>
+
+        <div class="neat-card p-6 sm:p-7 space-y-4">
+          <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <span class="text-lg">🎓</span>
+            <h2 class="text-base font-black text-slate-900">المؤهلات والتخصصات الدقيقة</h2>
+          </div>
+          <div class="space-y-3">
+            <div class="flex items-start gap-3 p-3 rounded-2xl bg-slate-50">
+              <span class="text-teal-600 font-black">✓</span>
+              <div>
+                <span id="docEdu" class="text-xs font-bold text-slate-900 block">دكتوراة أمراض الباطنة والقلب - كلية الطب، جامعة القاهرة</span>
+                <span class="text-[11px] text-slate-500">شهادة الدكتوراة التخصصية مع مرتبة الشرف</span>
+              </div>
+            </div>
+            <div class="flex items-start gap-3 p-3 rounded-2xl bg-slate-50">
+              <span class="text-teal-600 font-black">✓</span>
+              <div>
+                <span class="text-xs font-bold text-slate-900 block">التخصصات والاهتمامات السريرية:</span>
+                <span id="docSubSpec" class="text-[11px] text-slate-600">قسطرة القلب التداخلية، رسم القلب بالمجهود، متابعة ضغط الدم المقاوم</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clinic Details (1 Col) -->
+      <div class="space-y-6">
+        <div class="neat-card p-6 space-y-4">
+          <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+            <span class="text-lg">🏥</span>
+            <h2 class="text-sm font-black text-slate-900">معلومات العيادة والتواصل</h2>
+          </div>
+
+          <div class="space-y-3.5 text-xs">
+            <div>
+              <span class="text-[11px] text-slate-400 font-bold block mb-1">عنوان العيادة:</span>
+              <div class="flex items-start gap-2 text-slate-700">
+                <span>📍</span>
+                <span id="docAddress">شارع التسعين الشمالي، التجمع الخامس، القاهرة الجديدة</span>
+              </div>
+            </div>
+
+            <div>
+              <span class="text-[11px] text-slate-400 font-bold block mb-1">هاتف الاستقبال:</span>
+              <div class="flex items-center gap-2 text-slate-700">
+                <span>📞</span>
+                <span id="docPhone" class="font-mono font-bold" dir="ltr">01012345678</span>
+              </div>
+            </div>
+
+            <div>
+              <span class="text-[11px] text-slate-400 font-bold block mb-1">البريد الإلكتروني:</span>
+              <div class="flex items-center gap-2 text-slate-700">
+                <span>✉️</span>
+                <span id="docEmail" class="font-mono">dr.ahmed.radwan@clinova.eg</span>
+              </div>
+            </div>
+          </div>
+
+          <button onclick="switchTab('slots')" class="w-full py-2.5 rounded-2xl bg-teal-500 hover:bg-teal-600 text-white font-bold text-xs shadow-sm transition-all">
+            حجز موعد بالعيادة الآن
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- PANEL 2: AVAILABLE SLOTS -->
+    <div id="panelSlots" class="hidden neat-card p-7 space-y-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-black text-slate-900">المواعيد المتاحة للحجز المؤكد</h2>
+          <p class="text-xs text-slate-500 mt-0.5">اختر التوقيت المناسب وسيتم تأكيد حجزك فوراً</p>
+        </div>
+        <button onclick="openEditModal()" class="text-xs font-bold text-teal-600 hover:underline">
+          تعديل جدول المواعيد كطبيب ➔
+        </button>
+      </div>
+
+      <div id="slotsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="flex items-center justify-between text-xs text-slate-500 pt-3 border-t border-slate-100">
+        <span>⏱️ متوسط مدة الكشف داخل الغرفة: ~20 دقيقة</span>
+        <span>تأكيد الحجز فوري بدون انتظار</span>
+      </div>
+    </div>
+
+    <!-- PANEL 3: BLOG POSTS -->
+    <div id="panelBlog" class="hidden grid grid-cols-1 md:grid-cols-2 gap-5">
+      <article class="neat-card p-6 space-y-3 flex flex-col justify-between">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-teal-700 bg-teal-100 px-2.5 py-0.5 rounded-full">صحة القلب</span>
+            <span class="text-[10px] text-slate-400">3 دقائق قراءة</span>
+          </div>
+          <h3 class="text-sm font-extrabold text-slate-900 leading-snug">خفقان القلب المفاجئ: متى يكون عرضاً طبيعياً ومتى يتطلب تدخلاً فورياً؟</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">التوتر الزائد والإفراط في المنبهات هما السبب الأشهر، لكن ظهور دوخة أو ضيق تنفس متزامن يوجب تخطيط رسم قلب فوري للاطمئنان.</p>
+        </div>
+        <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+          <span class="text-[11px] text-slate-400">د. أحمد رضوان</span>
+          <button onclick="handleLike(1, 184)" id="likeBtn1" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">
+            <span id="heart1">🤍</span>
+            <span id="likeCount1" class="font-mono text-[11px]">184</span>
+          </button>
+        </div>
+      </article>
+
+      <article class="neat-card p-6 space-y-3 flex flex-col justify-between">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] font-bold text-teal-700 bg-teal-100 px-2.5 py-0.5 rounded-full">غدد وسكري</span>
+            <span class="text-[10px] text-slate-400">4 دقائق قراءة</span>
+          </div>
+          <h3 class="text-sm font-extrabold text-slate-900 leading-snug">مقاومة الإنسولين وكيفية عكس مسارها قبل التحول إلى سكري مزمن</h3>
+          <p class="text-xs text-slate-600 leading-relaxed">الدهون الحشوية حول الخصر تقلل استجابة المستقبلات. الحمية منخفضة المؤشر الجلايسيمي مع المشي اليومي يعيدان الحساسية الطبيعية بنسبة 70%.</p>
+        </div>
+        <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+          <span class="text-[11px] text-slate-400">د. أحمد رضوان</span>
+          <button onclick="handleLike(2, 312)" id="likeBtn2" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-500">
+            <span id="heart2">🤍</span>
+            <span id="likeCount2" class="font-mono text-[11px]">312</span>
+          </button>
+        </div>
+      </article>
+    </div>
+
+  </div>
+
+  <!-- CLEAN & NEAT DOCTOR EDIT MODAL -->
+  <div id="editModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md">
+    <div class="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <span class="text-lg">✏️</span>
+          <div>
+            <h3 class="font-black text-slate-900 text-base">تعديل ملف الطبيب والعيادة</h3>
+            <p class="text-[11px] text-slate-500">قم بتحديث بياناتك والمواعيد بسهولة</p>
+          </div>
+        </div>
+        <button onclick="closeEditModal()" class="p-1.5 rounded-full hover:bg-slate-200 text-slate-400 font-bold">✕</button>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div class="flex border-b border-slate-100 px-5 pt-3 gap-3 bg-white">
+        <button id="modalTabBtnInfo" onclick="switchModalTab('info')" class="pb-2.5 text-xs font-bold border-b-2 border-teal-500 text-teal-600 transition-colors">
+          البيانات الشخصية
+        </button>
+        <button id="modalTabBtnClinic" onclick="switchModalTab('clinic')" class="pb-2.5 text-xs font-bold border-b-2 border-transparent text-slate-400 transition-colors">
+          العيادة والتواصل
+        </button>
+        <button id="modalTabBtnSlots" onclick="switchModalTab('slots')" class="pb-2.5 text-xs font-bold border-b-2 border-transparent text-slate-400 transition-colors">
+          إدارة المواعيد (<span id="modalSlotsCount">8</span>)
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto space-y-4 flex-1">
+        
+        <!-- Tab 1: Info -->
+        <div id="modalPanelInfo" class="space-y-4">
+          <!-- Avatar Change -->
+          <div class="flex items-center gap-4 p-3.5 rounded-2xl bg-slate-50 border border-slate-100">
+            <img id="modalAvatarPreview" src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=600&auto=format&fit=crop" class="w-14 h-14 rounded-2xl object-cover border">
+            <div>
+              <label class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold cursor-pointer hover:opacity-90">
+                <span>📷 تغيير الصورة الشخصية</span>
+                <input type="file" accept="image/*" class="hidden" onchange="handleModalImage(event)">
+              </label>
+              <p class="text-[10px] text-slate-400 mt-1">صورة مربعة عالية الدقة</p>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">الاسم الكامل:</label>
+            <input id="inputName" type="text" class="w-full text-sm p-2.5 rounded-xl border border-slate-200 outline-none focus:border-teal-500">
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">المسمى الوظيفي والدقيق:</label>
+            <input id="inputTitle" type="text" class="w-full text-sm p-2.5 rounded-xl border border-slate-200 outline-none focus:border-teal-500">
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">النبذة المهنية والسريرية:</label>
+            <textarea id="inputBio" rows="3" class="w-full text-sm p-3 rounded-xl border border-slate-200 outline-none focus:border-teal-500"></textarea>
+          </div>
+        </div>
+
+        <!-- Tab 2: Clinic -->
+        <div id="modalPanelClinic" class="hidden space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs font-bold text-slate-700 block mb-1">سعر الكشف:</label>
+              <input id="inputPrice" type="text" class="w-full text-sm p-2.5 rounded-xl border border-slate-200 outline-none focus:border-teal-500">
+            </div>
+            <div>
+              <label class="text-xs font-bold text-slate-700 block mb-1">المؤهل الأكاديمي:</label>
+              <input id="inputEdu" type="text" class="w-full text-sm p-2.5 rounded-xl border border-slate-200 outline-none focus:border-teal-500">
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">عنوان العيادة والمقر:</label>
+            <input id="inputAddress" type="text" class="w-full text-sm p-2.5 rounded-xl border border-slate-200 outline-none focus:border-teal-500">
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">هاتف الحجز:</label>
+            <input id="inputPhone" type="text" class="w-full text-sm p-2.5 rounded-xl border border-slate-200 outline-none focus:border-teal-500">
+          </div>
+        </div>
+
+        <!-- Tab 3: Slots Builder & Manager -->
+        <div id="modalPanelSlots" class="hidden space-y-5">
+          <!-- Slot Builder Form -->
+          <div class="p-4 rounded-2xl bg-teal-50 border border-teal-200 space-y-3.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black text-teal-800">➕ إضافة موعد أو فترة كشف جديدة:</span>
+              
+              <div class="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-teal-100 text-[11px] font-bold">
+                <button type="button" id="btnModeRange" onclick="setSlotMode('range')" class="px-2.5 py-1 rounded-lg bg-teal-500 text-white">
+                  فترة كشف (من - إلى)
+                </button>
+                <button type="button" id="btnModeExact" onclick="setSlotMode('exact')" class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-teal-600">
+                  ساعة محددة
+                </button>
+              </div>
+            </div>
+
+            <!-- Day Choice -->
+            <div>
+              <label class="text-[11px] font-bold text-slate-700 block mb-1">اختر اليوم أو اكتب تاريخاً مخصصاً:</label>
+              <div class="flex flex-wrap gap-1.5" id="dayButtonsContainer">
+                <!-- Injected via JS -->
+              </div>
+              <input id="inputCustomDay" type="text" placeholder="اكتب اليوم أو التاريخ (مثلاً: السبت 15 أكتوبر)..." class="hidden w-full text-xs p-2 mt-1.5 rounded-xl border border-teal-300 outline-none">
+            </div>
+
+            <!-- Time Choice -->
+            <div id="rangeTimeInputs" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="text-[11px] font-bold text-slate-700 block mb-1">من الساعة (البداية):</label>
+                <input id="inputSlotFrom" type="text" value="06:00 م" class="w-full text-xs font-mono font-bold p-2.5 rounded-xl border border-slate-200 outline-none">
+              </div>
+              <div>
+                <label class="text-[11px] font-bold text-slate-700 block mb-1">إلى الساعة (النهاية):</label>
+                <input id="inputSlotTo" type="text" value="10:00 م" class="w-full text-xs font-mono font-bold p-2.5 rounded-xl border border-slate-200 outline-none">
+              </div>
+            </div>
+
+            <div id="exactTimeInputs" class="hidden">
+              <label class="text-[11px] font-bold text-slate-700 block mb-1">الساعة المحددة:</label>
+              <input id="inputSlotExact" type="text" value="07:30 م" class="w-full text-xs font-mono font-bold p-2.5 rounded-xl border border-slate-200 outline-none">
+            </div>
+
+            <!-- Add Slot Action -->
+            <div class="flex items-center justify-between pt-2 border-t border-teal-200">
+              <span id="previewSlotText" class="text-xs font-bold text-teal-800">
+                المعاينة: [اليوم] من 06:00 م إلى 10:00 م
+              </span>
+              <button onclick="addNewSlotFromBuilder()" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black shadow-sm">
+                + إضافة الموعد للجدول
+              </button>
+            </div>
+          </div>
+
+          <!-- Slots List -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-black text-slate-800">قائمة المواعيد المتاحة حالياً:</span>
+              <button onclick="cleanDuplicateSlots()" class="text-[11px] text-teal-600 hover:underline font-bold">
+                تنظيف المكررات
+              </button>
+            </div>
+            <div id="modalSlotsList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-slate-100 flex items-center justify-end gap-2.5 bg-slate-50">
+        <button onclick="closeEditModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-200">
+          إلغاء
+        </button>
+        <button onclick="saveModalChanges()" class="px-5 py-2 rounded-xl text-xs font-black bg-teal-500 hover:bg-teal-600 text-white shadow-md">
+          حفظ التعديلات الآن
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // 3D Three.js Subtle Background
+    let scene, camera, renderer, worldGroup, ribbonMesh;
+    function init3D() {
+      const canvas = document.getElementById('canvas3d');
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 0, 34);
+
+      renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      worldGroup = new THREE.Group();
+      scene.add(worldGroup);
+
+      const geom = new THREE.TorusKnotGeometry(5.5, 0.9, 100, 20, 2, 3);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x0d9488, roughness: 0.4, transparent: true, opacity: 0.22 });
+      ribbonMesh = new THREE.Mesh(geom, mat);
+      ribbonMesh.position.set(12, -3, -8);
+      worldGroup.add(ribbonMesh);
+
+      const light = new THREE.AmbientLight(0xffffff, 0.9);
+      scene.add(light);
+      const pLight = new THREE.PointLight(0x0d9488, 1.5, 50);
+      pLight.position.set(12, 10, 15);
+      scene.add(pLight);
+
+      render3D();
+    }
+
+    let clock = new THREE.Clock();
+    function render3D() {
+      requestAnimationFrame(render3D);
+      const el = clock.getElapsedTime();
+      if (ribbonMesh) {
+        ribbonMesh.rotation.x = el * 0.06;
+        ribbonMesh.rotation.y = el * 0.08;
+      }
+      renderer.render(scene, camera);
+    }
+
+    // Tabs
+    function switchTab(tab) {
+      ['about', 'slots', 'blog'].forEach(t => {
+        const isCurrent = t === tab;
+        const btn = document.getElementById('tabBtn' + capitalize(t));
+        const panel = document.getElementById('panel' + capitalize(t));
+        
+        if (isCurrent) {
+          btn.className = "px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold bg-slate-900 text-white shadow-sm transition-all";
+          panel.classList.remove('hidden');
+        } else {
+          btn.className = "px-5 py-2.5 rounded-2xl text-xs sm:text-sm font-extrabold text-slate-600 hover:text-slate-900 transition-all";
+          panel.classList.add('hidden');
+        }
+      });
+    }
+
+    function capitalize(s) {
+      return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    // Modal Edit
+    function openEditModal() {
+      document.getElementById('inputName').value = document.getElementById('docName').innerText;
+      document.getElementById('inputTitle').value = document.getElementById('docTitle').innerText;
+      document.getElementById('inputBio').value = document.getElementById('docBio').innerText;
+      document.getElementById('inputEdu').value = document.getElementById('docEdu').innerText;
+      document.getElementById('inputPrice').value = document.getElementById('docPrice').innerText;
+      document.getElementById('inputAddress').value = document.getElementById('docAddress').innerText;
+      document.getElementById('inputPhone').value = document.getElementById('docPhone').innerText;
+
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+    }
+
+    function saveModalChanges() {
+      document.getElementById('docName').innerText = document.getElementById('inputName').value;
+      document.getElementById('docTitle').innerText = document.getElementById('inputTitle').value;
+      document.getElementById('docBio').innerText = document.getElementById('inputBio').value;
+      document.getElementById('docEdu').innerText = document.getElementById('inputEdu').value;
+      document.getElementById('docPrice').innerText = document.getElementById('inputPrice').value;
+      document.getElementById('docAddress').innerText = document.getElementById('inputAddress').value;
+      document.getElementById('docPhone').innerText = document.getElementById('inputPhone').value;
+
+      closeEditModal();
+      showToast('تم حفظ التعديلات بنجاح! ✨');
+    }
+
+    function handleModalImage(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          document.getElementById('docPortraitImg').src = evt.target.result;
+          document.getElementById('modalAvatarPreview').src = evt.target.result;
+          showToast('تم تحديث الصورة الشخصية بنجاح!');
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // Slots Management
+    let slots = [
+      { day: 'اليوم', time: 'من 05:30 م إلى 08:30 م', avail: true },
+      { day: 'اليوم', time: 'من 08:30 م إلى 10:30 م', avail: true },
+      { day: 'غداً', time: 'من 04:00 م إلى 07:00 م', avail: true },
+      { day: 'غداً', time: 'من 07:00 م إلى 10:00 م', avail: true },
+      { day: 'الخميس', time: 'من 06:00 م إلى 10:00 م', avail: true },
+      { day: 'الجمعة', time: 'من 02:00 م إلى 06:00 م', avail: true }
+    ];
+
+    let currentSlotMode = 'range';
+    let currentSelectedDay = 'اليوم';
+    const dayOptions = ['اليوم', 'غداً', 'السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'مخصص'];
+
+    function switchModalTab(tab) {
+      ['info', 'clinic', 'slots'].forEach(t => {
+        const btn = document.getElementById('modalTabBtn' + capitalize(t));
+        const panel = document.getElementById('modalPanel' + capitalize(t));
+        if (t === tab) {
+          btn.className = "pb-2.5 text-xs font-bold border-b-2 border-teal-500 text-teal-600 transition-colors";
+          panel.classList.remove('hidden');
+        } else {
+          btn.className = "pb-2.5 text-xs font-bold border-b-2 border-transparent text-slate-400 transition-colors";
+          panel.classList.add('hidden');
+        }
+      });
+      if (tab === 'slots') {
+        initDayButtons();
+        renderModalSlotsList();
+      }
+    }
+
+    function initDayButtons() {
+      const container = document.getElementById('dayButtonsContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      dayOptions.forEach(d => {
+        const active = currentSelectedDay === d;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = active 
+          ? "px-3 py-1 rounded-xl text-xs font-bold bg-teal-600 text-white shadow-sm"
+          : "px-3 py-1 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 hover:border-teal-400";
+        btn.innerText = d;
+        btn.onclick = () => selectDay(d);
+        container.appendChild(btn);
+      });
+
+      const customInput = document.getElementById('inputCustomDay');
+      if (customInput) {
+        if (currentSelectedDay === 'مخصص') {
+          customInput.classList.remove('hidden');
+        } else {
+          customInput.classList.add('hidden');
+        }
+      }
+      updatePreviewText();
+    }
+
+    function selectDay(d) {
+      currentSelectedDay = d;
+      initDayButtons();
+    }
+
+    function setSlotMode(mode) {
+      currentSlotMode = mode;
+      const btnRange = document.getElementById('btnModeRange');
+      const btnExact = document.getElementById('btnModeExact');
+      const rangeBox = document.getElementById('rangeTimeInputs');
+      const exactBox = document.getElementById('exactTimeInputs');
+
+      if (mode === 'range') {
+        btnRange.className = "px-2.5 py-1 rounded-lg bg-teal-500 text-white";
+        btnExact.className = "px-2.5 py-1 rounded-lg text-slate-600 hover:text-teal-600";
+        rangeBox.classList.remove('hidden');
+        exactBox.classList.add('hidden');
+      } else {
+        btnRange.className = "px-2.5 py-1 rounded-lg text-slate-600 hover:text-teal-600";
+        btnExact.className = "px-2.5 py-1 rounded-lg bg-teal-500 text-white";
+        rangeBox.classList.add('hidden');
+        exactBox.classList.remove('hidden');
+      }
+      updatePreviewText();
+    }
+
+    function updatePreviewText() {
+      const preview = document.getElementById('previewSlotText');
+      if (!preview) return;
+      let day = currentSelectedDay;
+      if (day === 'مخصص') {
+        const val = document.getElementById('inputCustomDay')?.value?.trim();
+        day = val || 'اليوم';
+      }
+      let timeText = '';
+      if (currentSlotMode === 'range') {
+        const from = document.getElementById('inputSlotFrom')?.value || '06:00 م';
+        const to = document.getElementById('inputSlotTo')?.value || '10:00 م';
+        timeText = `من ${from} إلى ${to}`;
+      } else {
+        timeText = document.getElementById('inputSlotExact')?.value || '07:30 م';
+      }
+      preview.innerText = `المعاينة: [${day}] ${timeText}`;
+    }
+
+    function addNewSlotFromBuilder() {
+      let day = currentSelectedDay;
+      if (day === 'مخصص') {
+        day = document.getElementById('inputCustomDay')?.value?.trim() || 'اليوم';
+      }
+      let time = '';
+      if (currentSlotMode === 'range') {
+        const from = document.getElementById('inputSlotFrom')?.value?.trim() || '06:00 م';
+        const to = document.getElementById('inputSlotTo')?.value?.trim() || '10:00 م';
+        time = `من ${from} إلى ${to}`;
+      } else {
+        time = document.getElementById('inputSlotExact')?.value?.trim() || '07:30 م';
+      }
+
+      slots.unshift({ day, time, avail: true });
+      renderModalSlotsList();
+      renderSlots();
+      showToast('✨ تم إضافة الموعد الجديد بنجاح!');
+    }
+
+    function renderModalSlotsList() {
+      const list = document.getElementById('modalSlotsList');
+      const count = document.getElementById('modalSlotsCount');
+      if (count) count.innerText = slots.length;
+      if (!list) return;
+
+      list.innerHTML = '';
+      if (slots.length === 0) {
+        list.innerHTML = '<div class="text-center py-4 text-xs text-slate-400">لا توجد مواعيد مضافة حالياً.</div>';
+        return;
+      }
+
+      slots.forEach((s, idx) => {
+        list.innerHTML += `
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
+            <div class="flex items-center gap-2.5">
+              <span class="text-xs font-bold text-teal-700 bg-teal-100 px-2.5 py-0.5 rounded-md">${s.day}</span>
+              <span class="text-xs font-mono font-bold text-slate-800">${s.time}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="toggleSlot(${idx})" class="px-2 py-0.5 rounded-lg text-[10px] font-extrabold ${s.avail ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-600'}">
+                ${s.avail ? 'متاح' : 'مغلق'}
+              </button>
+              <button onclick="deleteSlot(${idx})" class="p-1 rounded-lg text-rose-500 hover:bg-rose-50 font-bold" title="حذف">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function toggleSlot(idx) {
+      slots[idx].avail = !slots[idx].avail;
+      renderModalSlotsList();
+      renderSlots();
+    }
+
+    function deleteSlot(idx) {
+      slots.splice(idx, 1);
+      renderModalSlotsList();
+      renderSlots();
+      showToast('تم حذف الموعد.');
+    }
+
+    function cleanDuplicateSlots() {
+      const seen = new Set();
+      slots = slots.filter(s => {
+        const key = `${s.day.trim()}_${s.time.trim()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      renderModalSlotsList();
+      renderSlots();
+      showToast('تم تنظيف المواعيد المكررة بنجاح!');
+    }
+
+    function renderSlots() {
+      const grid = document.getElementById('slotsGrid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      slots.forEach(s => {
+        grid.innerHTML += `
+          <div class="p-4 rounded-2xl border text-center transition-all ${s.avail ? 'bg-white border-slate-200 hover:border-teal-500 hover:shadow-md cursor-pointer' : 'bg-slate-100 border-slate-200 opacity-50 cursor-not-allowed'}">
+            <span class="text-[11px] font-bold text-slate-500 block mb-1">${s.day}</span>
+            <span class="text-xs sm:text-sm font-black text-slate-900 font-mono block mb-2 leading-relaxed">${s.time}</span>
+            <span class="inline-block w-full py-1.5 rounded-xl text-[11px] font-extrabold ${s.avail ? 'bg-teal-50 text-teal-700' : 'bg-slate-200 text-slate-500'}">
+              ${s.avail ? 'احجز الآن' : 'غير متاح'}
+            </span>
+          </div>
+        `;
+      });
+    }
+
+    function handleLike(id, base) {
+      document.getElementById('heart' + id).innerText = '❤️';
+      document.getElementById('likeCount' + id).innerText = base + 1;
+      document.getElementById('likeBtn' + id).classList.add('bg-rose-50', 'text-rose-600');
+      showToast('❤️ تم تسجيل إعجابك بالمقال بنجاح!');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('saveToast');
+      document.getElementById('toastMessage').innerText = msg;
+      toast.classList.remove('toast-hidden');
+      toast.classList.add('toast-visible');
+      setTimeout(() => {
+        toast.classList.remove('toast-visible');
+        toast.classList.add('toast-hidden');
+      }, 3000);
+    }
+
+    function triggerShareModal() {
+      navigator.clipboard.writeText(window.location.href);
+      showToast('🔗 تم نسخ رابط بطاقة الطبيب للحافظة!');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      init3D();
+      renderSlots();
+    });
+  </script>
+</body>
+</html>
